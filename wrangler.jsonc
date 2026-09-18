@@ -4,5 +4,5 @@
   "main": "./src/index.js",
   "compatibility_date": "2026-09-17",
   "assets": {"directory":"./public","binding":"ASSETS","run_worker_first":["/api/*"]},
-  "d1_databases": [{"binding":"DB","database_name":"quran-revision-db","database_id":"REPLACE_WITH_YOUR_D1_DATABASE_ID"}]
+  "d1_databases": [{"binding":"DB","database_name":"quran-revision-db","database_id":"b5615f89-0383-415c-b8cc-497cda1ea1e8"}]
 }
