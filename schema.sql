@@ -1,0 +1,11 @@
+PRAGMA foreign_keys = ON;
+CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE COLLATE NOCASE, password_hash TEXT NOT NULL, created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at INTEGER NOT NULL, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS surah_progress (user_id TEXT NOT NULL, surah INTEGER NOT NULL, memorized INTEGER NOT NULL DEFAULT 1, rating INTEGER NOT NULL DEFAULT 3 CHECK(rating BETWEEN 1 AND 6), last_read INTEGER, notes TEXT NOT NULL DEFAULT '', updated_at INTEGER NOT NULL, PRIMARY KEY(user_id,surah), FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS ayah_progress (user_id TEXT NOT NULL, surah INTEGER NOT NULL, ayah INTEGER NOT NULL, rating INTEGER CHECK(rating BETWEEN 1 AND 6), weak INTEGER NOT NULL DEFAULT 0, updated_at INTEGER NOT NULL, PRIMARY KEY(user_id,surah,ayah), FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS reading_log (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, surah INTEGER NOT NULL, ayah_start INTEGER NOT NULL, ayah_end INTEGER NOT NULL, read_at INTEGER NOT NULL, kind TEXT NOT NULL DEFAULT 'read', FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+CREATE TABLE IF NOT EXISTS homework_log (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, assigned_at INTEGER NOT NULL, minutes_target INTEGER NOT NULL, payload TEXT NOT NULL, completed_at INTEGER, actual_minutes INTEGER, FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_surah_user ON surah_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_ayah_user ON ayah_progress(user_id);
+CREATE INDEX IF NOT EXISTS idx_reading_user_date ON reading_log(user_id,read_at);
