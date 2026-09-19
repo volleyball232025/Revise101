@@ -40,6 +40,112 @@ function renderHomework(){let latest=D.homework.find(x=>!x.completed_at);$('main
 function homeworkCard(h){return `<span class="pill">~${h.payload.estimatedMinutes} min · ${h.payload.totalAyahs} ayahs</span>${h.payload.groups.map(g=>`<div class="homeworkItem"><b>${S[g.surah-1].name}</b><br>Ayahs ${g.start}${g.end>g.start?'–'+g.end:''}</div>`).join('')}<div class="toolbar" style="margin-top:12px"><input id="actualMin" type="number" min="1" value="${h.minutes_target}" placeholder="Actual minutes"><button class="primary" onclick="completeHomework('${h.id}')">Complete homework</button></div>`}
 async function createHomework(){let minutes=+$('hwMin').value,payload=planHomework(minutes);if(!payload.totalAyahs)return alert('Add memorized Surahs first.');await api('/api/homework',{method:'POST',body:JSON.stringify({minutes,payload})});await reload();renderHomework()}async function completeHomework(id){let actual=+$('actualMin').value||1;await api(`/api/homework/${id}/complete`,{method:'POST',body:JSON.stringify({actual_minutes:actual})});await reload();renderHomework()}
 function homeworkPreview(){let h=D.homework.find(x=>!x.completed_at);return h?homeworkCard(h):'<p class="muted">No homework assigned yet.</p><button class="primary" onclick="show(\'homework\')">Create homework</button>'}
-function renderStats(){let m=memorized(),total=m.reduce((a,x)=>a+S[x.surah-1].ayahs,0),weak=D.ayahs.filter(x=>x.weak).length,rank=[...m].sort((a,b)=>effectiveRating(a)-effectiveRating(b));$('main').innerHTML=`<h1>Stats</h1><p class="sub">Your detailed memorization, strength and reading activity.</p><div class="grid"><section class="card full"><div class="metricRow"><div class="metric"><b>${total.toLocaleString()}</b><small>Ayahs memorized</small></div><div class="metric"><b>${weak}</b><small>Weak ayahs</small></div><div class="metric"><b>${m.length}</b><small>Surahs memorized</small></div><div class="metric"><b>${overall()}%</b><small>Overall strength</small></div></div></section><section class="card half"><h2>Quran read</h2>${[['Last 7 days',7],['Last 30 days',30],['Last year',365],['Lifetime',0]].map(([l,d])=>`<div class="homeworkItem"><b>${l}</b><span style="float:right">${readCount(d)} ayahs · ${qPct(readCount(d))}%</span></div>`).join('')}</section><section class="card half"><h2>Weakest Surahs</h2>${rankChart(rank.slice(0,8))}</section></div>`}
+function renderStats(){
+  let m=memorized(),
+      total=m.reduce((a,x)=>a+S[x.surah-1].ayahs,0),
+      weak=D.ayahs.filter(x=>x.weak).length;
+
+  $('main').innerHTML=`
+    <h1>Stats</h1>
+    <p class="sub">Your detailed memorization, strength and reading activity.</p>
+
+    <div class="grid">
+      <section class="card full">
+        <div class="metricRow">
+          <div class="metric">
+            <b>${total.toLocaleString()}</b>
+            <small>Ayahs memorized</small>
+          </div>
+          <div class="metric">
+            <b>${weak}</b>
+            <small>Weak ayahs</small>
+          </div>
+          <div class="metric">
+            <b>${m.length}</b>
+            <small>Surahs memorized</small>
+          </div>
+          <div class="metric">
+            <b>${overall()}%</b>
+            <small>Overall strength</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="card half">
+        <h2>Quran read</h2>
+        ${[
+          ['Last 7 days',7],
+          ['Last 30 days',30],
+          ['Last year',365],
+          ['Lifetime',0]
+        ].map(([l,d])=>`
+          <div class="homeworkItem">
+            <b>${l}</b>
+            <span style="float:right">
+              ${readCount(d)} ayahs · ${qPct(readCount(d))}%
+            </span>
+          </div>
+        `).join('')}
+      </section>
+
+      <section class="card half">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <h2 id="statsRankTitle">Surah Strength</h2>
+
+          <div class="toolbar">
+            <select id="statsRankOrder" onchange="renderStatsRank()" style="width:auto">
+              <option value="strong">Strongest → Weakest</option>
+              <option value="weak">Weakest → Strongest</option>
+            </select>
+
+            <button class="secondary" onclick="reverseStatsRank()">
+              Reverse order
+            </button>
+          </div>
+        </div>
+
+        <div id="statsRankChart"></div>
+      </section>
+    </div>
+  `;
+
+  renderStatsRank();
+}
+
+function renderStatsRank(){
+  let order=$('statsRankOrder')?.value||'strong';
+
+  let rank=[...memorized()].sort((a,b)=>
+    order==='strong'
+      ? effectiveRating(b)-effectiveRating(a)
+      : effectiveRating(a)-effectiveRating(b)
+  );
+
+  $('statsRankChart').innerHTML=rank.length
+    ? rank.map(sp=>{
+        let r=effectiveRating(sp);
+        return `
+          <div class="barRow">
+            <span>${sp.surah}. ${S[sp.surah-1].name}</span>
+            <div class="bar">
+              <i style="width:${r/6*100}%"></i>
+            </div>
+            <b>${r.toFixed(1)}</b>
+          </div>
+        `;
+      }).join('')
+    : '<p class="muted">No memorized Surahs yet.</p>';
+}
+
+function reverseStatsRank(){
+  let select=$('statsRankOrder');
+
+  select.value=
+    select.value==='strong'
+      ? 'weak'
+      : 'strong';
+
+  renderStatsRank();
+}
 function renderSettings(){let keys=[['strength','Overall strength'],['activity','Quran activity'],['homework',"Today's homework"],['weakest','Weakest/strongest chart'],['recent','Recently read']];$('main').innerHTML=`<h1>Settings</h1><p class="sub">Customize what appears on your home page.</p><div class="card"><h2>Home widgets</h2>${keys.map(([k,l])=>`<div class="settingsRow"><span>${l}</span><button class="switch ${pref(k)?'on':''}" onclick="togglePref('${k}',this)"><i></i></button></div>`).join('')}</div>`}function togglePref(k,b){localStorage.setItem('widget_'+k,pref(k)?'0':'1');b.classList.toggle('on')}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}boot().catch(e=>{$('authMsg').textContent=e.message});</script></body></html>
